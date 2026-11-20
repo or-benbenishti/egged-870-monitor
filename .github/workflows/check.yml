@@ -1,6 +1,11 @@
 name: Egged 870 seat monitor
 on:
   workflow_dispatch:
+    inputs:
+      test_telegram:
+        description: 'Only send a Telegram test message (no availability check)'
+        type: boolean
+        default: false
   schedule:
     # Once an hour at minute 17 (UTC; minute-only cron is the same in every time zone).
     # GitHub does not guarantee exact start times: runs can be delayed, and occasionally dropped, under load.
@@ -20,12 +25,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Telegram test message
+        if: inputs.test_telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python notify.py --test-telegram
       - name: Check availability (read-only, no seat is reserved)
+        if: ${{ !inputs.test_telegram }}
         id: probe
         continue-on-error: true   # UNKNOWN exits 1; still run the notify step for the other date
         run: python monitor.py
       - name: Notify once per OPEN date
-        if: always() && hashFiles('probe_results.json') != ''
+        if: always() && !inputs.test_telegram && hashFiles('probe_results.json') != ''
         env:
           GH_TOKEN: ${{ github.token }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

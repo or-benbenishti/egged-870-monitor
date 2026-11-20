@@ -63,9 +63,17 @@ def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument('--report', default='probe_results.json')
     p.add_argument('--dry-run', action='store_true', help='Print alerts only; no Telegram, no GitHub')
+    p.add_argument('--test-telegram', action='store_true', help='Send one test message; ignores the report and dedup')
     a = p.parse_args(argv)
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')  # Windows consoles default to cp1255
+    if a.test_telegram:
+        tg_token, chat_id = os.environ.get('TELEGRAM_BOT_TOKEN'), os.environ.get('TELEGRAM_CHAT_ID')
+        if not (tg_token and chat_id):
+            sys.exit('TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID secrets are missing')
+        telegram_send(tg_token, chat_id, '✅ הודעת ניסיון ממנטר קו 870. זו לא התראת זמינות.')
+        print('Test Telegram message sent.')
+        return
     with open(a.report, encoding='utf-8') as fh:
         report = json.load(fh)
     from zoneinfo import ZoneInfo
