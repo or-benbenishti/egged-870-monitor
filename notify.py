@@ -52,7 +52,7 @@ def build_message(r):
     day = dt.date.fromisoformat(r['date'])
     label = 'מוצאי שבת' if day.weekday() == 5 else 'תאריך'
     return (f'🚌 קו 870 פתוח להזמנה!\n'
-            f'{label} {day.strftime("%d/%m/%Y")},צומת מגידו → סורוקה/אונ\' בן גוריון, עלייה {r.get("boarding_time") or r.get("requested_time")}.\n'
+            f'{label} {day.strftime("%d/%m/%Y")}, צומת מגידו → סורוקה/אונ\' בן גוריון, עלייה {r.get("boarding_time") or r.get("requested_time")}.\n'
             f'לא הוזמן מקום – יש להיכנס ולהזמין בעצמך:\n{SITE}')
 
 
