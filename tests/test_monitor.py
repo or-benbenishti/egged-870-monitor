@@ -137,7 +137,7 @@ class Notify(unittest.TestCase):
                            {'date': d2, 'status': 'NOT_OPEN'}, {'date': d1, 'status': 'UNKNOWN'}]}
         gh, tg = self.run_notify(rep, existing=[f'[EGGED 870 OPEN] {d1}'])
         self.assertEqual(tg.call_count, 1)
-        self.assertIn(d2, tg.call_args.args[2])
+        self.assertIn(dt.date.fromisoformat(d2).strftime('%d/%m/%Y'), tg.call_args.args[2])
         self.assertEqual(gh.call_count, 1)
 
     def test_rerun_does_not_duplicate(self):

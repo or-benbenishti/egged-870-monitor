@@ -6,6 +6,14 @@ on:
         description: 'Only send a Telegram test message (no availability check)'
         type: boolean
         default: false
+      date:
+        description: 'Optional: check this date instead of the two Saturdays (YYYY-MM-DD)'
+        required: false
+        default: ''
+      time:
+        description: 'Boarding time at Megiddo Jct for that date (HH:MM)'
+        required: false
+        default: '19:05'
   schedule:
     # Once an hour at minute 17 (UTC; minute-only cron is the same in every time zone).
     # GitHub does not guarantee exact start times: runs can be delayed, and occasionally dropped, under load.
@@ -35,7 +43,15 @@ jobs:
         if: ${{ !inputs.test_telegram }}
         id: probe
         continue-on-error: true   # UNKNOWN exits 1; still run the notify step for the other date
-        run: python monitor.py
+        env:
+          CHECK_DATE: ${{ inputs.date }}
+          CHECK_TIME: ${{ inputs.time }}
+        run: |
+          if [ -n "$CHECK_DATE" ]; then
+            python monitor.py --date "$CHECK_DATE" --time "${CHECK_TIME:-19:05}"
+          else
+            python monitor.py
+          fi
       - name: Notify once per OPEN date
         if: always() && !inputs.test_telegram && hashFiles('probe_results.json') != ''
         env:
