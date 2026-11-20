@@ -159,5 +159,49 @@ class Notify(unittest.TestCase):
         self.assertEqual(tg.call_count, 0)
 
 
+class Health(unittest.TestCase):
+    import health as H
+
+    def at(self, day, hh=12):
+        return dt.datetime(2026, 11, day, hh, 0, tzinfo=TZ)
+
+    def issue(self, state):
+        return {'number': 5, 'body': self.H.render_state(state)}
+
+    def test_healthy_without_issue_does_nothing(self):
+        self.assertEqual(self.H.step(None, None, self.at(20)), ('none', None, None))
+
+    def test_alert_only_after_three_failures_then_once_per_day(self):
+        issue, sent = None, []
+        for hour in range(8, 14):  # 6 failing runs on the same day
+            action, state, msg = self.H.step('boom', issue, self.at(20, hour))
+            issue = self.issue(state)
+            sent.append(msg is not None)
+        self.assertEqual(sent, [False, False, True, False, False, False])
+        _, state, msg = self.H.step('boom', issue, self.at(21, 8))  # next day, still failing
+        self.assertIsNotNone(msg)
+        self.assertEqual(state['consecutive_failures'], 7)
+
+    def test_recovery_message_only_if_alerted(self):
+        quiet = self.issue({'consecutive_failures': 2, 'last_alert_date': None})
+        action, _, msg = self.H.step(None, quiet, self.at(20))
+        self.assertEqual((action, msg), ('close', None))
+        alerted = self.issue({'consecutive_failures': 4, 'last_alert_date': '2026-11-20'})
+        action, _, msg = self.H.step(None, alerted, self.at(20))
+        self.assertEqual(action, 'close')
+        self.assertIn('חזר לפעול', msg)
+
+    def test_run_failure_detection(self):
+        with tempfile.TemporaryDirectory() as w:
+            p = os.path.join(w, 'r.json')
+            self.assertIn('missing', self.H.run_failure(p))
+            for results, healthy in (([{'status': 'NOT_OPEN'}, {'status': 'OPEN'}], True),
+                                     ([{'status': 'NOT_OPEN'}, {'status': 'UNKNOWN', 'date': 'd'}], False),
+                                     ([], False)):
+                with open(p, 'w', encoding='utf-8') as f:
+                    json.dump({'results': results}, f)
+                self.assertEqual(self.H.run_failure(p) is None, healthy)
+
+
 if __name__ == '__main__':
     unittest.main()
