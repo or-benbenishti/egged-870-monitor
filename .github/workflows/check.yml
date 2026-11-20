@@ -1,0 +1,33 @@
+name: Egged 870 seat monitor
+on:
+  workflow_dispatch:
+  schedule:
+    # Once an hour at minute 17 (UTC; minute-only cron is the same in every time zone).
+    # GitHub does not guarantee exact start times: runs can be delayed, and occasionally dropped, under load.
+    - cron: '17 * * * *'
+permissions:
+  contents: read
+  issues: write   # dedup state: one Issue per alerted date
+concurrency:
+  group: egged-870-monitor
+  cancel-in-progress: false
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check availability (read-only, no seat is reserved)
+        id: probe
+        continue-on-error: true   # UNKNOWN exits 1; still run the notify step for the other date
+        run: python monitor.py
+      - name: Notify once per OPEN date
+        if: always() && hashFiles('probe_results.json') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python notify.py
